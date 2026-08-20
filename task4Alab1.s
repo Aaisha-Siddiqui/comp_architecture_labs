@@ -8,7 +8,7 @@ main:
     sw x11, 0(x2) 
 
     lhu x12, 0(x1)
-    lw x13, 0(x2)
+    lh x13, 0(x2)
     lw x14, 0(x2)
 
 end:
