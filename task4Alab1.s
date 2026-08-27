@@ -9,7 +9,7 @@ main:
 
     lhu x12, 0(x1)
     lh x13, 0(x2)
-    lw x14, 0(x2)
+    lb x14, 0(x2)
 
 end:
     j end
