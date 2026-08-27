@@ -14,8 +14,13 @@ main:
     li x5, 0 #x5 storing(b-a)=0
     sub x5, x2, x1 #x5=b-a
     li x6, 0 #e=0
-    add x6, x4, x5 #e=x4+x5
-    add x6, x6, x3 #e=x6+d
+    add x6, x4, x5 #e=x4+x5 = (a-d)+(b-a)
+    add x6, x6, x3 #e=x6+d = ((a-d)+(b-a)) + d
+
+    add x6, x6, x1 #e=e+a
+    add x6, x6, x2 #e=e+a+b
+    add x6, x6, x3 #e=e+a+b+d
+
 
 end:
     j end
