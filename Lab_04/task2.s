@@ -1,6 +1,6 @@
 main:
     li x10, 5             # n = 5
-    jal x1, ntri          # Call factorial
+    jal x1, ntri          # Call ntri
     addi x11, x10, 0      # Put answer in x11
     li x10, 1             # print integer
     ecall
