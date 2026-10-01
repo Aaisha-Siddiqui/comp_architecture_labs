@@ -41,9 +41,7 @@ module ALU_1bit_sim;
         .Cout(Cout)
     );
     initial begin
-        // Monitor changes in the console
-        $monitor("Time=%0t | Op=%b | A=%b B=%b Cin=%b | Result=%b Cout=%b",  $time, Operation, A, B, Cin, Result, Cout);
-        // Test 1: AND (Op = 3'b000) -> 1 & 1 = 1
+        // Test 1: AND (Op = 3'b000) -> 1 & 0 = 0
         A = 1'b1; B = 1'b0; Cin = 1'b0; Operation = 3'b000;
         #10;
         // Test 2: OR (Op = 3'b001) -> 1 | 0 = 1

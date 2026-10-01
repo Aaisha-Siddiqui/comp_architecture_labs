@@ -1,7 +1,9 @@
 `timescale 1ns / 1ps
+
 //////////////////////////////////////////////////////////////////////////////////
 // Module Name: top_ALU_system
 // Target Devices: Basys 3
+// Description: 
 //////////////////////////////////////////////////////////////////////////////////
 
 module top_ALU_system (
@@ -13,10 +15,10 @@ module top_ALU_system (
 
     // Debouncer and Bus Signals
     wire rst_clean;
-    wire [31:0] switch_data;           // Holds values read from switches
-    reg  [31:0] led_write_data = 32'd0; // Data routed to the LED writer
+    wire [31:0] switch_data;           
+    reg  [31:0] led_write_data = 32'd0; 
     wire slow_clk;
-  
+
     debouncer rst_db (
         .clk(clk),
         .pbin(pbin), 
@@ -29,7 +31,7 @@ module top_ALU_system (
         .btns(16'd0),            
         .writeData(32'd0),       
         .writeEnable(1'b0),      
-        .readEnable(1'b1),       // Active to read physical switches
+        .readEnable(1'b1),       
         .memAddress(30'd0),       
         .switches(physical_sw),  
         .readData(switch_data)   
@@ -52,45 +54,43 @@ module top_ALU_system (
         .clk_out(slow_clk)       
     );
 
-    // FSM COUNTER LOGIC
-    localparam WAIT      = 1'b0;
-    localparam COUNTDOWN = 1'b1;
+    // FSM STATES
+    localparam WAIT    = 1'b0;
+    localparam CAPTURE = 1'b1;
 
     reg state;
-    reg [15:0] counter;
 
     always @(posedge clk) begin
         if (rst_clean) begin
-            state   <= WAIT;
-            counter <= 16'd0;
-        end
-        else if (state == WAIT) begin
-            if (switch_data != 32'd0) begin
-                counter <= switch_data[15:0];
-                state   <= COUNTDOWN;
-            end
-            else begin
-                counter <= 16'd0;
-                state   <= WAIT;
-            end
-        end
-        else if (state == COUNTDOWN) begin
-            if (counter == 16'd1) begin
-                counter <= 16'd0;
-                state   <= WAIT;
-            end
-            else if (counter != 16'd0) begin
-                counter <= counter - 16'd1;
-                state   <= COUNTDOWN;
-            end
-            else begin
-                counter <= 16'd0;
-                state   <= WAIT;
-            end
+            state          <= WAIT;
+            led_write_data <= 32'd0;
         end
         else begin
-            state   <= WAIT;
-            counter <= 16'd0;
+            case (state)
+                WAIT: begin
+                    // Check if enable switch [15] is active
+                    if (switch_data[15] == 1'b1) begin
+                        state <= CAPTURE;
+                    end
+                    else begin
+                        led_write_data <= 32'd0;
+                    end
+                end
+                
+                CAPTURE: begin
+                    // If switch[15] is turned off, reset output and return to wait
+                    if (switch_data[15] == 1'b0) begin
+                        state          <= WAIT;
+                        led_write_data <= 32'd0;
+                    end
+                    else begin
+                        // Continuously display results while enabled, math is combinational
+                        led_write_data <= {16'd0, zero_flag, alu_result[14:0]};
+                    end
+                end
+                
+                default: state <= WAIT;
+            endcase
         end
     end
 
@@ -103,17 +103,10 @@ module top_ALU_system (
     ALU_32bit u_alu (
         .A(32'h10101010), 
         .B(32'h01010101), 
-        .ShiftAmount(switch_data[8:4]),           // Shift amount mapped to switches [8:4]
-        .ALUControl(switch_data[3:0]),            // ALU operation mapped to switches [3:0]
+        .ShiftAmount(switch_data[8:4]), 
+        .ALUControl(switch_data[3:0]),  
         .ALUResult(alu_result),
         .Zero(zero_flag)
     );
-
-    // Continuous LED output assignment:
-    // LED[15]   = Zero Flag
-    // LED[14:0] = Lower 15 bits of ALU Result
-    always @(*) begin
-        led_write_data = {16'd0, zero_flag, alu_result[14:0]};
-    end
 
 endmodule
