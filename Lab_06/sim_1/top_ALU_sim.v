@@ -1,0 +1,126 @@
+`timescale 1ns / 1ps
+
+module top_ALU_sim;
+
+    // 0001-BIT (1-BIT) SIGNALS
+    reg clk;
+    reg pbin;
+
+    // 00010000-BIT (16-BIT) PHYSICAL SWITCHES
+    reg [15:0] physical_sw;
+
+    // 00010000-BIT (16-BIT) PHYSICAL LEDS
+    wire [15:0] physical_leds;
+
+    // INSTANTIATION
+    top_ALU_system uut (
+        .clk(clk),
+        .pbin(pbin),
+        .physical_sw(physical_sw),
+        .physical_leds(physical_leds)
+    );
+
+    // 00001010 NS (10 NS) PERIOD CLOCK -> 100 MHZ
+    always #5 clk = ~clk;
+
+    initial begin
+        // 0000000000000000 (DECIMAL 0) INITIALIZATION
+        clk = 1'b0;
+        pbin = 1'b0;
+        physical_sw = 16'b0000000000000000; // DECIMAL: 0
+
+        // DISPLAY SIGNALS IN BINARY AND DECIMAL FORMAT
+        $monitor("Time=%0t ns | SW_bin=%b (SW_dec=%0d) | LED_bin=%b (LED_dec=%0d)", 
+                 $time, physical_sw, physical_sw, physical_leds, physical_leds);
+
+        // 00010100 NS (20 NS) WAIT
+        #20;
+
+        // ASSERT RESET: PBIN = 1 (DECIMAL 1)
+        pbin = 1'b1;
+
+        // 00101000 NS (40 NS) WAIT
+        #40;
+
+        // DEASSERT RESET: PBIN = 0 (DECIMAL 0)
+        pbin = 1'b0;
+
+        // 00101000 NS (40 NS) WAIT
+        #40;
+
+        // FIXED INPUT OPERANDS IN TOP MODULE:
+        // A = 32'h10101010 = 32'b00010000000100000001000000010000 -> DECIMAL: 269,488,144
+        // B = 32'h01010101 = 32'b00000001000000010000000100000001 -> DECIMAL: 16,843,009
+
+        // TEST 0001 (TEST 1): ADD (ALUCONTROL = 0000 -> DECIMAL 0)
+        // OPERATION: 269,488,144 + 16,843,009 = 286,331,153 (HEX: 0x11111111)
+        // EXPECTED RESULT: 32'b00010001000100010001000100010001
+        // LOWER 15 BITS: 15'h1111 (DECIMAL: 4369), ZERO FLAG = 0
+        // EXPECTED LED[15:0]: 16'b0001000100010001 (HEX: 0x1111) -> DECIMAL: 4369
+        physical_sw = 16'b0000000000000000; // DECIMAL: 0
+        #100;
+
+        // TEST 0010 (TEST 2): SUB (ALUCONTROL = 0001 -> DECIMAL 1)
+        // OPERATION: 269,488,144 - 16,843,009 = 252,645,135 (HEX: 0x0F0F0F0F)
+        // EXPECTED RESULT: 32'b00001111000011110000111100001111
+        // LOWER 15 BITS: 15'h0F0F (DECIMAL: 3855), ZERO FLAG = 0
+        // EXPECTED LED[15:0]: 16'b0000111100001111 (HEX: 0x0F0F) -> DECIMAL: 3855
+        physical_sw = 16'b0000000000000001; // DECIMAL: 1
+        #100;
+
+        // TEST 0011 (TEST 3): AND (ALUCONTROL = 0010 -> DECIMAL 2)
+        // OPERATION: 269,488,144 & 16,843,009 = 0 (HEX: 0x00000000)
+        // EXPECTED RESULT: 32'b00000000000000000000000000000000
+        // LOWER 15 BITS: 15'd0, ZERO FLAG = 1 (LED[15] = 1)
+        // EXPECTED LED[15:0]: 16'b1000000000000000 (HEX: 0x8000) -> DECIMAL: 32768
+        physical_sw = 16'b0000000000000010; // DECIMAL: 2
+        #100;
+
+        // TEST 0100 (TEST 4): OR (ALUCONTROL = 0011 -> DECIMAL 3)
+        // OPERATION: 269,488,144 | 16,843,009 = 286,331,153 (HEX: 0x11111111)
+        // EXPECTED RESULT: 32'b00010001000100010001000100010001
+        // LOWER 15 BITS: 15'h1111 (DECIMAL: 4369), ZERO FLAG = 0
+        // EXPECTED LED[15:0]: 16'b0001000100010001 (HEX: 0x1111) -> DECIMAL: 4369
+        physical_sw = 16'b0000000000000011; // DECIMAL: 3
+        #100;
+
+        // TEST 0101 (TEST 5): XOR (ALUCONTROL = 0100 -> DECIMAL 4)
+        // OPERATION: 269,488,144 ^ 16,843,009 = 286,331,153 (HEX: 0x11111111)
+        // EXPECTED RESULT: 32'b00010001000100010001000100010001
+        // LOWER 15 BITS: 15'h1111 (DECIMAL: 4369), ZERO FLAG = 0
+        // EXPECTED LED[15:0]: 16'b0001000100010001 (HEX: 0x1111) -> DECIMAL: 4369
+        physical_sw = 16'b0000000000000100; // DECIMAL: 4
+        #100;
+
+        // TEST 0110 (TEST 6): SLL (ALUCONTROL = 0101 -> DECIMAL 5, SHAMT = 00100 -> DECIMAL 4)
+        // OPERATION: 0x10101010 << 4 = 0x01010100 (DECIMAL: 16,843,008)
+        // EXPECTED RESULT: 32'b00000001000000010000000100000000
+        // LOWER 15 BITS: 15'h0100 (DECIMAL: 256), ZERO FLAG = 0
+        // EXPECTED LED[15:0]: 16'b0000000100000000 (HEX: 0x0100) -> DECIMAL: 256
+        physical_sw = 16'b0000000001000101; // DECIMAL: 69
+        #100;
+
+        // TEST 0111 (TEST 7): SRL (ALUCONTROL = 0110 -> DECIMAL 6, SHAMT = 00100 -> DECIMAL 4)
+        // OPERATION: 0x10101010 >> 4 = 0x01010101 (DECIMAL: 16,843,009)
+        // EXPECTED RESULT: 32'b00000001000000010000000100000001
+        // LOWER 15 BITS: 15'h0101 (DECIMAL: 257), ZERO FLAG = 0
+        // EXPECTED LED[15:0]: 16'b0000000100000001 (HEX: 0x0101) -> DECIMAL: 257
+        physical_sw = 16'b0000000001000110; // DECIMAL: 70
+        #100;
+
+        // TEST 1000 (TEST 8): BEQ / SUB CHECK (ALUCONTROL = 0111 -> DECIMAL 7)
+        // OPERATION: 269,488,144 - 16,843,009 = 252,645,135 (NON-ZERO, ZERO FLAG = 0)
+        // EXPECTED RESULT: 32'b00001111000011110000111100001111 (HEX: 0x0F0F0F0F)
+        // LOWER 15 BITS: 15'h0F0F (DECIMAL: 3855), ZERO FLAG = 0
+        // EXPECTED LED[15:0]: 16'b0000111100001111 (HEX: 0x0F0F) -> DECIMAL: 3855
+        physical_sw = 16'b0000000000000111; // DECIMAL: 7
+        #100;
+
+        // 00110010 NS (50 NS) WAIT
+        #50;
+
+        // END SIMULATION
+        $finish;
+    end
+
+endmodule
