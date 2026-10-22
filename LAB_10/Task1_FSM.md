@@ -1,25 +1,40 @@
 # Lab 10 — Task 1: FSM control flow
 
-## States and transitions
-
-- **WAIT / wait_state:** Check the reset-button register first. If reset is pressed, clear LEDs and remain waiting. Otherwise read switches.
-- **READ SWITCHES / read_sw:** If the switch value is zero, go back to WAIT. If nonzero, display the value and call the countdown routine.
-- **COUNTDOWN / count_loop:** Display the current counter. If it is zero, finish. Otherwise run the delay routine.
-- **RESET DURING COUNTDOWN:** The delay routine returns 1 when reset is pressed. The countdown sets the counter to zero; the next loop pass clears LEDs and finishes.
-- **COUNT NEXT:** If reset was not pressed, decrement the counter and repeat.
-- **RETURN:** Restore saved registers and return to WAIT.
-
 ## Flowchart
 
-Start → Initialize stack and addresses → Clear LEDs → WAIT: read reset button
-- Reset pressed? **Yes** → Clear LEDs → WAIT
-- Reset pressed? **No** → Read switches
-  - Switches = 0? **Yes** → WAIT
-  - Switches nonzero → Display switch value → Call COUNTDOWN
-    - Counter = 0? **Yes** → Clear LEDs → Return to WAIT
-    - Counter nonzero → Call DELAY
-      - Reset pressed? **Yes** → Set counter to 0 → repeat COUNT_LOOP → Clear LEDs → Return to WAIT
-      - Reset pressed? **No** → Decrement counter → repeat COUNT_LOOP
+```mermaid
+flowchart TD
+    A([Start]) --> B[Initialize stack and addresses]
+    B --> C[Clear LEDs]
+    C --> D[WAIT: Read reset button]
+    D --> E{Reset pressed?}
+    E -- Yes --> F[Clear LEDs]
+    F --> D
+    E -- No --> G[Read switches]
+    G --> H{Switch value is zero?}
+    H -- Yes --> D
+    H -- No --> I[Display switch value]
+    I --> J[Call COUNTDOWN]
+    J --> K[COUNT_LOOP: Display counter]
+    K --> L{Counter is zero?}
+    L -- Yes --> M[Restore registers and return]
+    M --> D
+    L -- No --> N[Call DELAY]
+    N --> O{Reset pressed?}
+    O -- Yes --> P[Set counter to zero]
+    P --> K
+    O -- No --> Q[Decrement counter]
+    Q --> K
+```
+
+## States and transitions
+
+- **WAIT / wait_state:** Check the reset-button register. If reset is pressed, clear LEDs and remain waiting. Otherwise read switches.
+- **READ SWITCHES / read_sw:** If the switch value is zero, return to WAIT. If nonzero, display it and call the countdown routine.
+- **COUNTDOWN / count_loop:** Display the current counter. If it is zero, finish. Otherwise run the delay routine.
+- **RESET DURING COUNTDOWN:** The delay routine returns 1 when reset is pressed. The countdown sets the counter to zero; the next loop pass writes zero to the LEDs and finishes.
+- **COUNT NEXT:** If reset was not pressed, decrement the counter and repeat.
+- **RETURN:** Restore saved registers and return to WAIT.
 
 ## Address assumptions
 
