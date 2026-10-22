@@ -46,7 +46,7 @@ always @(*) begin
         2'b10: begin
             case (funct3)
 
-// ADD / SUB / ADDI
+// ADD / SUB 
                 3'b000: begin
                     if (funct7 == 7'b0100000)
                         ALUControl = 4'b0001; // SUB
