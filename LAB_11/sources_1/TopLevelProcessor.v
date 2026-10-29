@@ -1,7 +1,8 @@
 `timescale 1ns / 1ps
 // Lab 11 Task 2: Integrated single-cycle RV32I processor.
-// Reuses Lab 6 ALU and Lab 7 register file.
-// Uses Lab 8 memory-mapped address layout with CPU memory transactions.
+// Reuses the ALU, register file and control path from Labs 6, 7 and 9.
+// Memory-mapped map follows Lab 8: RAM 0x000-0x1FF,
+// LEDs 0x200-0x2FF, physical switches 0x300-0x3FF.
 module TopLevelProcessor(
     input wire clk,
     input wire rst,
@@ -21,8 +22,7 @@ module TopLevelProcessor(
     wire [31:0] aluB;
     wire [31:0] aluResult;
     wire [31:0] writeBackData;
-    wire [31:0] dataReadValue;
-    wire [31:0] memoryReadRaw;
+    reg  [31:0] dataReadValue;
 
     wire RegWrite;
     wire [1:0] ALUOp;
@@ -103,17 +103,16 @@ module TopLevelProcessor(
         .Zero(Zero)
     );
 
-    // Lab 8 memory map: data memory 0x000-0x1FF,
-    // LEDs 0x200-0x2FF, switches 0x300-0x3FF.
     assign address10 = aluResult[9:0];
     assign DataMemRead = MemRead && (address10[9:8] != 2'b10)
-                                && (address10[9:8] != 2'b11);
-    assign DataMemWrite = MemWrite && (address10[9:8] != 2'b10)
                                   && (address10[9:8] != 2'b11);
+    assign DataMemWrite = MemWrite && (address10[9:8] != 2'b10)
+                                    && (address10[9:8] != 2'b11);
     assign LEDWrite = MemWrite && (address10[9:8] == 2'b10);
     assign SwitchReadEnable = MemRead && (address10[9:8] == 2'b11);
     assign switchReadData = {16'd0, physical_sw};
 
+    // Asynchronous read for single-cycle LW.
     always @(*) begin
         if (SwitchReadEnable)
             dataReadValue = switchReadData;
@@ -123,6 +122,7 @@ module TopLevelProcessor(
             dataReadValue = 32'd0;
     end
 
+    // Synchronous memory writes and memory-mapped LED writes.
     always @(posedge clk) begin
         if (rst) begin
             led_reg <= 16'd0;
