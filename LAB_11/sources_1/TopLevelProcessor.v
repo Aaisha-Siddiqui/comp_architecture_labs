@@ -1,8 +1,8 @@
 `timescale 1ns / 1ps
 // Lab 11 Task 2: Integrated single-cycle RV32I processor.
-// Reuses the ALU, register file and control path from Labs 6, 7 and 9.
-// Memory-mapped map follows Lab 8: RAM 0x000-0x1FF,
-// LEDs 0x200-0x2FF, physical switches 0x300-0x3FF.
+// Reuses ALU, RegisterFile and ControlPath from Labs 6, 7 and 9.
+// Lab 8 address map: RAM 0x000-0x1FF, LEDs 0x200-0x2FF,
+// physical switches 0x300-0x3FF.
 module TopLevelProcessor(
     input wire clk,
     input wire rst,
@@ -11,35 +11,17 @@ module TopLevelProcessor(
     output wire [31:0] debugPC,
     output wire [31:0] debugInstruction
 );
-    wire [31:0] PC;
-    wire [31:0] nextPC;
-    wire [31:0] PCPlus4;
-    wire [31:0] instruction;
-    wire [31:0] immediate;
-    wire [31:0] branchTarget;
-    wire [31:0] rs1Data;
-    wire [31:0] rs2Data;
-    wire [31:0] aluB;
-    wire [31:0] aluResult;
-    wire [31:0] writeBackData;
-    reg  [31:0] dataReadValue;
+    wire [31:0] PC, nextPC, PCPlus4, instruction, immediate, branchTarget;
+    wire [31:0] rs1Data, rs2Data, aluB, aluResult, writeBackData;
+    reg [31:0] dataReadValue;
 
-    wire RegWrite;
+    wire RegWrite, MemRead, MemWrite, ALUSrc, MemtoReg, Branch;
     wire [1:0] ALUOp;
-    wire MemRead;
-    wire MemWrite;
-    wire ALUSrc;
-    wire MemtoReg;
-    wire Branch;
     wire [3:0] ALUControl;
-    wire Zero;
-    wire PCSrc;
+    wire Zero, PCSrc;
 
     wire [9:0] address10;
-    wire DataMemRead;
-    wire DataMemWrite;
-    wire LEDWrite;
-    wire SwitchReadEnable;
+    wire DataMemRead, DataMemWrite, LEDWrite, SwitchReadEnable;
     wire [31:0] switchReadData;
     reg [31:0] memory [0:511];
     reg [15:0] led_reg;
@@ -48,23 +30,11 @@ module TopLevelProcessor(
     assign debugPC = PC;
     assign debugInstruction = instruction;
 
-    ProgramCounter pc_register(
-        .clk(clk), .rst(rst), .nextPC(nextPC), .PC(PC)
-    );
-
+    ProgramCounter pc_register(.clk(clk), .rst(rst), .nextPC(nextPC), .PC(PC));
     pcAdder pc_plus_four(.PC(PC), .PCPlus4(PCPlus4));
-
-    instructionMemory instruction_memory(
-        .instAddress(PC), .instruction(instruction)
-    );
-
-    immGen immediate_generator(
-        .instruction(instruction), .immediate(immediate)
-    );
-
-    branchAdder branch_address(
-        .PC(PC), .imm(immediate), .branchTarget(branchTarget)
-    );
+    instructionMemory instruction_memory(.instAddress(PC), .instruction(instruction));
+    immGen immediate_generator(.instruction(instruction), .immediate(immediate));
+    branchAdder branch_address(.PC(PC), .imm(immediate), .branchTarget(branchTarget));
 
     ControlPath control_path(
         .opcode(instruction[6:0]),
@@ -81,26 +51,16 @@ module TopLevelProcessor(
     );
 
     RegisterFile register_file(
-        .clk(clk),
-        .rst(rst),
-        .WriteEnable(RegWrite),
-        .rs1(instruction[19:15]),
-        .rs2(instruction[24:20]),
-        .rd(instruction[11:7]),
-        .WriteData(writeBackData),
-        .ReadData1(rs1Data),
-        .ReadData2(rs2Data)
+        .clk(clk), .rst(rst), .WriteEnable(RegWrite),
+        .rs1(instruction[19:15]), .rs2(instruction[24:20]),
+        .rd(instruction[11:7]), .WriteData(writeBackData),
+        .ReadData1(rs1Data), .ReadData2(rs2Data)
     );
 
     assign aluB = ALUSrc ? immediate : rs2Data;
-
     ALU_32bit alu(
-        .A(rs1Data),
-        .B(aluB),
-        .ShiftAmount(instruction[24:20]),
-        .ALUControl(ALUControl),
-        .ALUResult(aluResult),
-        .Zero(Zero)
+        .A(rs1Data), .B(aluB), .ShiftAmount(instruction[24:20]),
+        .ALUControl(ALUControl), .ALUResult(aluResult), .Zero(Zero)
     );
 
     assign address10 = aluResult[9:0];
@@ -112,7 +72,6 @@ module TopLevelProcessor(
     assign SwitchReadEnable = MemRead && (address10[9:8] == 2'b11);
     assign switchReadData = {16'd0, physical_sw};
 
-    // Asynchronous read for single-cycle LW.
     always @(*) begin
         if (SwitchReadEnable)
             dataReadValue = switchReadData;
@@ -122,7 +81,6 @@ module TopLevelProcessor(
             dataReadValue = 32'd0;
     end
 
-    // Synchronous memory writes and memory-mapped LED writes.
     always @(posedge clk) begin
         if (rst) begin
             led_reg <= 16'd0;
@@ -141,10 +99,5 @@ module TopLevelProcessor(
     assign writeBackData = MemtoReg ? dataReadValue : aluResult;
     assign PCSrc = Branch & Zero;
 
-    mux2 next_pc_mux(
-        .in0(PCPlus4),
-        .in1(branchTarget),
-        .select(PCSrc),
-        .out(nextPC)
-    );
+    mux2 next_pc_mux(.in0(PCPlus4), .in1(branchTarget), .select(PCSrc), .out(nextPC));
 endmodule
