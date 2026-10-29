@@ -4,7 +4,6 @@ module Task1_tb;
     reg rst;
     reg [31:0] instruction;
     reg PCSrc;
-    reg [31:0] testPC;
     wire [31:0] PC;
     wire [31:0] PCPlus4;
     wire [31:0] immediate;
@@ -23,22 +22,22 @@ module Task1_tb;
         clk = 0;
         rst = 1;
         PCSrc = 0;
-        instruction = 32'h00500093; // addi x1,x0,5 (I-type immediate 5)
+        instruction = 32'h00500093; // addi x1,x0,5
         #10;
         rst = 0;
         #10;
         if (PC !== 32'd4) $display("FAIL: PC should be 4, got %h", PC);
         else $display("PASS: PC increments by 4");
 
-        // B-type example with branch immediate of +8 bytes.
-        // Immediate generator returns encoded branch immediate (offset/2).
-        instruction = 32'h00000463; // beq x0,x0,+8
+        // beq x0,x0,+8; branch target should be current PC + 8.
+        instruction = 32'h00000463;
         PCSrc = 1;
         #10;
         if (PC !== 32'd12) $display("FAIL: branch PC expected 12, got %h", PC);
         else $display("PASS: branch target selected");
 
         instruction = 32'hFFF00113; // addi x2,x0,-1
+        PCSrc = 0;
         #1;
         if (immediate !== 32'hFFFFFFFF)
             $display("FAIL: I-type sign extension: %h", immediate);
