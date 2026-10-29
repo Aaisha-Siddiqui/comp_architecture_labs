@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 // Lab 11 Task 2: Integrated single-cycle RV32I processor.
-// Reuses ALU, RegisterFile and ControlPath from Labs 6, 7 and 9.
-// Lab 8 address map: RAM 0x000-0x1FF, LEDs 0x200-0x2FF,
+// Uses the ALU, register file, and control path from Labs 6, 7, and 9.
+// Address map from Lab 8: RAM 0x000-0x1FF, LEDs 0x200-0x2FF,
 // physical switches 0x300-0x3FF.
 module TopLevelProcessor(
     input wire clk,
@@ -13,7 +13,7 @@ module TopLevelProcessor(
 );
     wire [31:0] PC, nextPC, PCPlus4, instruction, immediate, branchTarget;
     wire [31:0] rs1Data, rs2Data, aluB, aluResult, writeBackData;
-    reg [31:0] dataReadValue;
+    reg  [31:0] dataReadValue;
 
     wire RegWrite, MemRead, MemWrite, ALUSrc, MemtoReg, Branch;
     wire [1:0] ALUOp;
@@ -40,14 +40,9 @@ module TopLevelProcessor(
         .opcode(instruction[6:0]),
         .funct3(instruction[14:12]),
         .funct7(instruction[31:25]),
-        .RegWrite(RegWrite),
-        .ALUOp(ALUOp),
-        .MemRead(MemRead),
-        .MemWrite(MemWrite),
-        .ALUSrc(ALUSrc),
-        .MemtoReg(MemtoReg),
-        .Branch(Branch),
-        .ALUControl(ALUControl)
+        .RegWrite(RegWrite), .ALUOp(ALUOp), .MemRead(MemRead),
+        .MemWrite(MemWrite), .ALUSrc(ALUSrc), .MemtoReg(MemtoReg),
+        .Branch(Branch), .ALUControl(ALUControl)
     );
 
     RegisterFile register_file(
@@ -64,6 +59,8 @@ module TopLevelProcessor(
     );
 
     assign address10 = aluResult[9:0];
+
+    // Match Lab 8 AddressDecoder's regions.
     assign DataMemRead = MemRead && (address10[9:8] != 2'b10)
                                   && (address10[9:8] != 2'b11);
     assign DataMemWrite = MemWrite && (address10[9:8] != 2'b10)
@@ -72,6 +69,7 @@ module TopLevelProcessor(
     assign SwitchReadEnable = MemRead && (address10[9:8] == 2'b11);
     assign switchReadData = {16'd0, physical_sw};
 
+    // Asynchronous read for single-cycle LW.
     always @(*) begin
         if (SwitchReadEnable)
             dataReadValue = switchReadData;
@@ -81,6 +79,7 @@ module TopLevelProcessor(
             dataReadValue = 32'd0;
     end
 
+    // Synchronous data-memory writes and memory-mapped LED writes.
     always @(posedge clk) begin
         if (rst) begin
             led_reg <= 16'd0;
