@@ -6,20 +6,20 @@ module immGen(
 );
     always @(*) begin
         case (instruction[6:0])
-            // I-type: addi, lw and other I-type immediate operations
+            // I-type immediate
             7'b0010011, 7'b0000011, 7'b1100111:
                 immediate = {{20{instruction[31]}}, instruction[31:20]};
 
-            // S-type: sw
+            // S-type immediate (sw)
             7'b0100011:
                 immediate = {{20{instruction[31]}},
                              instruction[31:25], instruction[11:7]};
 
-            // B-type: beq and other conditional branches
+            // B-type immediate in bytes: bit 0 is always zero
             7'b1100011:
                 immediate = {{19{instruction[31]}},
                              instruction[31], instruction[7],
-                             instruction[30:25], instruction[11:8]};
+                             instruction[30:25], instruction[11:8], 1'b0};
 
             default:
                 immediate = 32'd0;
