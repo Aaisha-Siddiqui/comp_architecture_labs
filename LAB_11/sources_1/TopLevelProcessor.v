@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 // Lab 11 Task 2: Integrated single-cycle RV32I processor.
-// Reuses Lab 6 ALU, Lab 7 RegisterFile, Lab 8 memory interfaces,
-// and Lab 9 control modules.
+// Reuses Lab 6 ALU and Lab 7 register file.
+// Uses Lab 8 memory-mapped address layout with CPU memory transactions.
 module TopLevelProcessor(
     input wire clk,
     input wire rst,
@@ -20,10 +20,9 @@ module TopLevelProcessor(
     wire [31:0] rs2Data;
     wire [31:0] aluB;
     wire [31:0] aluResult;
-    wire [31:0] memoryReadData;
     wire [31:0] writeBackData;
-    wire [31:0] memoryAddress;
     wire [31:0] dataReadValue;
+    wire [31:0] memoryReadRaw;
 
     wire RegWrite;
     wire [1:0] ALUOp;
@@ -36,35 +35,35 @@ module TopLevelProcessor(
     wire Zero;
     wire PCSrc;
 
+    wire [9:0] address10;
+    wire DataMemRead;
+    wire DataMemWrite;
+    wire LEDWrite;
+    wire SwitchReadEnable;
+    wire [31:0] switchReadData;
+    reg [31:0] memory [0:511];
+    reg [15:0] led_reg;
+    integer i;
+
     assign debugPC = PC;
     assign debugInstruction = instruction;
 
     ProgramCounter pc_register(
-        .clk(clk),
-        .rst(rst),
-        .nextPC(nextPC),
-        .PC(PC)
+        .clk(clk), .rst(rst), .nextPC(nextPC), .PC(PC)
     );
 
-    pcAdder pc_plus_four(
-        .PC(PC),
-        .PCPlus4(PCPlus4)
-    );
+    pcAdder pc_plus_four(.PC(PC), .PCPlus4(PCPlus4));
 
     instructionMemory instruction_memory(
-        .instAddress(PC),
-        .instruction(instruction)
+        .instAddress(PC), .instruction(instruction)
     );
 
     immGen immediate_generator(
-        .instruction(instruction),
-        .immediate(immediate)
+        .instruction(instruction), .immediate(immediate)
     );
 
     branchAdder branch_address(
-        .PC(PC),
-        .imm(immediate),
-        .branchTarget(branchTarget)
+        .PC(PC), .imm(immediate), .branchTarget(branchTarget)
     );
 
     ControlPath control_path(
@@ -104,21 +103,41 @@ module TopLevelProcessor(
         .Zero(Zero)
     );
 
-    assign memoryAddress = aluResult;
+    // Lab 8 memory map: data memory 0x000-0x1FF,
+    // LEDs 0x200-0x2FF, switches 0x300-0x3FF.
+    assign address10 = aluResult[9:0];
+    assign DataMemRead = MemRead && (address10[9:8] != 2'b10)
+                                && (address10[9:8] != 2'b11);
+    assign DataMemWrite = MemWrite && (address10[9:8] != 2'b10)
+                                  && (address10[9:8] != 2'b11);
+    assign LEDWrite = MemWrite && (address10[9:8] == 2'b10);
+    assign SwitchReadEnable = MemRead && (address10[9:8] == 2'b11);
+    assign switchReadData = {16'd0, physical_sw};
 
-    // Address decoder and the original Lab 8 memory-mapped I/O.
-    addressDecoderTop memory_system(
-        .clk(clk),
-        .rst(rst),
-        .address(memoryAddress),
-        .readEnable(MemRead),
-        .writeEnable(MemWrite),
-        .writeData(rs2Data),
-        .switches(physical_sw),
-        .readData(dataReadValue),
-        .leds(physical_leds)
-    );
+    always @(*) begin
+        if (SwitchReadEnable)
+            dataReadValue = switchReadData;
+        else if (DataMemRead)
+            dataReadValue = memory[address10[8:0]];
+        else
+            dataReadValue = 32'd0;
+    end
 
+    always @(posedge clk) begin
+        if (rst) begin
+            led_reg <= 16'd0;
+            for (i = 0; i < 512; i = i + 1)
+                memory[i] <= 32'd0;
+        end
+        else begin
+            if (DataMemWrite)
+                memory[address10[8:0]] <= rs2Data;
+            if (LEDWrite)
+                led_reg <= rs2Data[15:0];
+        end
+    end
+
+    assign physical_leds = led_reg;
     assign writeBackData = MemtoReg ? dataReadValue : aluResult;
     assign PCSrc = Branch & Zero;
 
